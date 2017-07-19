@@ -1,0 +1,97 @@
+---
+title: "Explore data"
+output: html_notebook
+---
+
+
+## Input data
+
+This notebook has to be ran from the server as it directly access large dataset stored on disk.
+Data are available on the `data2` disk. From the coral server, they can be accessed at `/export/isilon/datos2/satmo_analysis/`. The variable, collection and resolution is indicated in the file names. When a file has `.grd` + `.gri` extension (native format of the raster package), time information is directly written into the file. When the file is in `.tif`, it should come with a `.time` file, that is simply a text file containing the date for each layer.
+
+## Origin of the data
+
+
+Following download of L2 files from the oceancolor servers, data were processed using the following utilities:
+    
+- `timerange_L3m_process.py` for data masking and binning to a regular 2km grid
+- `timerange_daily_composite.py` for combining data from the 3 sensors (aqua, terra, and viirs) into daily composites (mean value compositing)
+- `timerange_time_composite.py` to create timcomposites (8 days and 16 days) from the daily composites
+- A custom stacking script using `rasterio` to stack layers in chronological order (see `python` directory)
+
+
+## Global variables
+
+```{r, echo=FALSE, warning=FALSE}
+library(raster)
+library(rasterVis)
+library(rgdal)
+library(magrittr)
+library(ggplot2)
+library(zoo)
+path <- '/export/isilon/datos2/satmo_analysis'
+```
+
+
+
+## Visualize chlorophyll a
+
+### Load data and assign time to multitemporal raster object
+
+```{r}
+chl_a_brick <- file.path(path, 'stack.L3m_8DAY_CHL_chlor_a_2km.tif') %>%
+    brick()
+chl_a_time <- file.path(path, 'stack.L3m_8DAY_CHL_chlor_a_2km.time') %>%
+    scan(what = character()) %>%
+    as.Date()
+chl_a_brick <- setZ(chl_a_brick, chl_a_time)
+```
+
+
+### Visualize a layer
+
+
+```{r}
+layer_nb <- 400
+title <- sprintf('Chlor_a, 8 day composite, %s', getZ(chl_a_brick)[layer_nb])
+levelplot(chl_a_brick, layers=layer_nb, zscaleLog=TRUE, maxpixels=1000000, margin = FALSE, main=title, col.regions = colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"))(250))
+```
+
+
+### Extract and visualize temporal profiles of individual pixels
+
+```{r}
+source('R/tsExtract.R')
+ts <- tsExtractCoords(chl_a_brick, long=-88, lat=22)
+ggplot(fortify(ts)) +
+    geom_point(aes(Index, ts)) +
+    xlab('Time') +
+    ylab('Chlor_a')
+```
+
+
+We can add a bit of temporal context by plotting a fitted harmonic (or harmonic trend) model together with the observations.
+
+```{r}
+source('R/harmonFit.R')
+df <- harmonFit(ts) # See the sourced function for additional parameters (order, formula, fit)
+ggplot(df) +
+    geom_point(aes(dates, response)) +
+    geom_line(aes(dates, prediction),  color = 'green') +
+    xlab('Time') +
+    ylab('Chlor_a')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
