@@ -82,6 +82,13 @@ ggplot(df) +
     ylab('Chlor_a')
 ```
 
+### Save data
+
+We can save the data as an example dataset for further analysis.
+
+```{r}
+saveRDS(df, file = '../data/chlor_a_ts.rds')
+```
 
 
 

@@ -1,0 +1,43 @@
+---
+title: "Outlier detection"
+output: html_notebook
+---
+
+This notebook prototypes a simple system for detecting outliers in a time-series. Such approach could later be used (in combination with others) for the detecion of events like algae blooms.
+
+## Packages and data
+
+Refer to notebook `01-explore-satmo-data` to know where the time-series loaded below come from. It contains observations of chlorophyll_a, predicted values from a hrmonic trend model fit and residuals.
+
+```{r}
+library(ggplot2)
+df <- readRDS('../data/chlor_a_ts.rds')
+source('R/outlierDetector.R')
+```
+
+The `outlierDetector` computes the interquartile Range (IQR) on the residuals of the a fitted model (harmonic trend in the test dataset). A sensitivity value is applied to this interquantile range to determine boundaries that define whether a residual value is an outlier or not. By default the `outlierDetector` uses a sensitivity value of 1.5. This means that if an observation has an outlier value that exceeds `1.5 * first or third quartile * IRQ`, it is considered to be an outlier.
+
+```{r}
+df2 <- outlierDetector(df)
+ggplot(df2) +
+    geom_point(aes(dates, response, color = isOutlier)) +
+    guides(color = "none") +
+    geom_line(aes(dates, prediction),  color = 'green') +
+    xlab('Time') +
+    ylab('Chlor_a')
+```
+
+In the above figure, blue dots correspond to outliers, relative to the harmonic trend fit. Sensitivity value can be adjusted to increase the non-outlier range.
+
+```{r}
+df3 <- outlierDetector(df, sensitivity = 3)
+ggplot(df3) +
+    geom_point(aes(dates, response, color = isOutlier)) +
+    guides(color = "none") +
+    geom_line(aes(dates, prediction),  color = 'green') +
+    xlab('Time') +
+    ylab('Chlor_a')
+```
+
+Increasing the sensitivity makes the 'valid range' wider, and results in the detection of less outliers. It's a bit counter intuitive, but it's like that!
+
